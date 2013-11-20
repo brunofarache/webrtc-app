@@ -1,8 +1,7 @@
 var app = require('http').createServer(handler),
 	io = require('socket.io').listen(app),
-	static = require('node-static');
-
-var server = new static.Server('./public');
+	static = require('node-static'),
+	server = new static.Server('./public');
 
 app.listen(80);
 

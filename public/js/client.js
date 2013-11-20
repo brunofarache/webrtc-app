@@ -47,6 +47,7 @@ var app = {
 			function (stream) {
 				video1.autoplay = true;
 				video1.src = window.URL.createObjectURL(stream);
+				video1.muted = true;
 				
 				instance._createPeerConnection(stream);
 			},
