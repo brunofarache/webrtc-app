@@ -30,7 +30,9 @@ if (!window.RTCIceCandidate) {
 }
 
 var app = {
-	peer: new RTCPeerConnection(null),
+	peer: new RTCPeerConnection({
+		"iceServers": [{"url": "stun:stun.l.google.com:19302"}]
+	}),
 
 	start: function() {
 		var instance = this,

@@ -1,7 +1,7 @@
 {
 	"name": "webrtc-client",
 	"subdomain": "bfarache",
-	"version": "0.1.1",
+	"version": "0.1.4",
 	"scripts": {
 		"start": "node server"
 	},
