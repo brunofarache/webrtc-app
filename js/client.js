@@ -12,11 +12,11 @@ if (!navigator.getUserMedia) {
 }
 
 if (!window.URL) {
-    window.URL =
-    	window.URL ||
-    	window.webkitURL ||
-    	window.msURL ||
-    	window.oURL;
+	window.URL =
+		window.URL ||
+		window.webkitURL ||
+		window.msURL ||
+		window.oURL;
 }
 
 if (!window.RTCPeerConnection) {
@@ -30,12 +30,11 @@ if (!window.RTCIceCandidate) {
 }
 
 var app = {
-	peer1: {},
-	peer2: {},
+	peer: new RTCPeerConnection(null),
 
 	start: function() {
 		var instance = this,
-			peer1 = instance.peer1,
+			peer = instance.peer,
 			video1 = document.getElementById('video1');
 
 		navigator.getUserMedia(
@@ -46,9 +45,8 @@ var app = {
 			function (stream) {
 				video1.autoplay = true;
 				video1.src = window.URL.createObjectURL(stream);
-				peer1.stream = stream;
-
-				instance.call();
+				
+				instance._createPeerConnection(stream);
 			},
 			function () {
 				console.log('cannot access camera');
@@ -58,95 +56,98 @@ var app = {
 
 	call: function() {
 		var instance = this,
-			peer1 = instance.peer1,
-			peer2 = instance.peer2;
+			peer = instance.peer;
 
-		var videoTracks = peer1.stream.getVideoTracks(),
-			audioTracks = peer1.stream.getAudioTracks();
-
-		if (videoTracks.length > 0) {
-			console.log('video: ', videoTracks[0].label);
-		}
-
-		if (audioTracks.length > 0) {
-			console.log('audio: ', audioTracks[0].label);
-		}
-
-		peer1.peerConnection = new RTCPeerConnection(null);
-		peer2.peerConnection = new RTCPeerConnection(null);
-
-		peer1.peerConnection.onicecandidate = instance._onIceCandidate1.bind(instance);
-		peer2.peerConnection.onicecandidate = instance._onIceCandidate2.bind(instance);
-
-		peer2.peerConnection.onaddstream = instance._onStream.bind(instance);
-
-		peer1.peerConnection.addStream(peer1.stream);
-		peer1.peerConnection.createOffer(instance._onOffer.bind(instance));
+		peer.createOffer(instance._setLocalDescription.bind(instance));
 	},
 
-	_onAnswer: function(description) {
+	_addIceCandidate: function(message) {
 		var instance = this,
-			peer1 = instance.peer1,
-			peer2 = instance.peer2;
+			peer = instance.peer;
 
-		console.log('_onAnswer', description);
-
-		peer2.peerConnection.setLocalDescription(description);
-		peer1.peerConnection.setRemoteDescription(description);
+		peer.addIceCandidate(new RTCIceCandidate(message));
 	},
 
-	_onIceCandidate1: function(event) {
+	_answer: function(message) {
 		var instance = this,
-			peer2 = instance.peer2;
+			peer = instance.peer;
+
+		instance._setRemoteDescription(message);
+
+		var constraints = {
+			'mandatory': {
+				'OfferToReceiveAudio': true, 
+				'OfferToReceiveVideo': true
+			}
+		};
+
+		peer.createAnswer(instance._setLocalDescription.bind(instance), null, constraints);
+	},
+
+	_createPeerConnection: function(stream) {
+		var instance = this,
+			peer = instance.peer;
+
+		peer.onicecandidate = instance._onIceCandidate.bind(instance);
+		peer.onaddstream = instance._onAddStream.bind(instance);
+		peer.addStream(stream);
+	},
+
+	_setLocalDescription: function(description) {
+		var instance = this,
+			peer = instance.peer;
+
+		peer.setLocalDescription(description);
+
+		socket.emit('message', description);
+	},
+
+	_setRemoteDescription: function(message) {
+		var instance = this,
+			peer = instance.peer;
+
+		peer.setRemoteDescription(new RTCSessionDescription(message));
+	},
+
+	_onIceCandidate: function(event) {
+		var instance = this,
+			peer = instance.peer;
 
 		if (event.candidate) {
-			console.log('_onIceCandidate1', event.candidate.candidate);
+			var message = {
+				type: 'candidate',
+				sdpMLineIndex: event.candidate.sdpMLineIndex,
+				candidate: event.candidate.candidate
+			};
 
-			peer2.peerConnection.addIceCandidate(new RTCIceCandidate(event.candidate));
+			socket.emit('message', message);
 		}	
 	},
 
-	_onIceCandidate2: function(event) {
-		var instance = this,
-			peer1 = instance.peer1;
-
-		if (event.candidate) {
-			console.log('_onIceCandidate2', event.candidate.candidate);
-
-			peer1.peerConnection.addIceCandidate(new RTCIceCandidate(event.candidate));
-		}	
-	},
-
-	_onOffer: function(description) {
-		var instance = this,
-			peer1 = instance.peer1,
-			peer2 = instance.peer2;
-
-		console.log('_onOffer', description);
-
-		peer1.peerConnection.setLocalDescription(description);
-		peer2.peerConnection.setRemoteDescription(description);
-
-		peer2.peerConnection.createAnswer(instance._onAnswer.bind(instance), null,
-			{
-				'mandatory': {
-					'OfferToReceiveAudio': true, 
-					'OfferToReceiveVideo': true
-				}
-		    }
-		);
-	},
-
-	_onStream: function(event) {
+	_onAddStream: function(event) {
 		var instance = this,
 			video2 = document.getElementById('video2');
-
-		console.log('_onStream', event);
 
 		video2.autoplay = true;
 		video2.src = window.URL.createObjectURL(event.stream);
 	}
 };
+
+var socket = io.connect('http://localhost:9000');
+
+socket.on('message', function (message) {
+	var type = message.type;
+
+	if (type === 'offer') {
+		app._answer(message);
+	}
+	else if (type === 'answer') {
+		app._setRemoteDescription(message);
+	}
+	else if (type == 'candidate') {
+		app._addIceCandidate(message);
+	}
+});
 
 window.app = app;
 
