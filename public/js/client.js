@@ -45,10 +45,9 @@ var app = {
 				video: true
 			},
 			function (stream) {
-				video1.autoplay = true;
-				video1.src = window.URL.createObjectURL(stream);
+				instance._attachStream(video1, stream);
 				video1.muted = true;
-				
+
 				instance._createPeerConnection(stream);
 			},
 			function () {
@@ -62,6 +61,11 @@ var app = {
 			peer = instance.peer;
 
 		peer.createOffer(instance._setLocalDescription.bind(instance));
+	},
+
+	_attachStream: function(video, stream) {
+		video.autoplay = true;
+		video.src = window.URL.createObjectURL(stream);
 	},
 
 	_addIceCandidate: function(message) {
@@ -131,8 +135,7 @@ var app = {
 		var instance = this,
 			video2 = document.getElementById('video2');
 
-		video2.autoplay = true;
-		video2.src = window.URL.createObjectURL(event.stream);
+		instance._attachStream(video2, event.stream);
 	}
 };
 
