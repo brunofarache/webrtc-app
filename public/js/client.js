@@ -133,7 +133,7 @@ var app = {
 	}
 };
 
-var socket = io.connect('http://localhost:9000');
+var socket = io.connect();
 
 socket.on('message', function (message) {
 	var type = message.type;

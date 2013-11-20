@@ -1,10 +1,15 @@
 {
-	"name": "webrtc-server",
-	"version": "0.1.0",
+	"name": "webrtc-client",
+	"subdomain": "bfarache",
+	"version": "0.1.1",
 	"scripts": {
-		"start": "node js/server.js"
+		"start": "node server"
 	},
 	"dependencies": {
-		"socket.io": "*"
+		"socket.io": "*",
+		"node-static": "0.7.2"
+	},
+	"engines": {
+		"node": "0.10.x"
 	}
 }
