@@ -33,6 +33,7 @@ var app = {
 	peer: new RTCPeerConnection({
 		"iceServers": [{"url": "stun:stun.l.google.com:19302"}]
 	}),
+	room: null,
 
 	start: function() {
 		var instance = this,
@@ -98,6 +99,8 @@ var app = {
 		peer.onicecandidate = instance._onIceCandidate.bind(instance);
 		peer.onaddstream = instance._onAddStream.bind(instance);
 		peer.addStream(stream);
+
+		socket.emit('join', location.hash);
 	},
 
 	_setLocalDescription: function(description) {
@@ -106,7 +109,10 @@ var app = {
 
 		peer.setLocalDescription(description);
 
-		socket.emit('message', description);
+		socket.emit('relay', {
+			'room': instance.room,
+			'payload': description
+		});
 	},
 
 	_setRemoteDescription: function(message) {
@@ -121,13 +127,16 @@ var app = {
 			peer = instance.peer;
 
 		if (event.candidate) {
-			var message = {
+			var payload = {
 				type: 'candidate',
 				sdpMLineIndex: event.candidate.sdpMLineIndex,
 				candidate: event.candidate.candidate
 			};
 
-			socket.emit('message', message);
+			socket.emit('relay', {
+				'room': instance.room,
+				'payload': payload
+			});
 		}	
 	},
 
@@ -141,7 +150,7 @@ var app = {
 
 var socket = io.connect();
 
-socket.on('message', function (message) {
+socket.on('relay', function (message) {
 	var type = message.type;
 
 	if (type === 'offer') {
@@ -153,6 +162,14 @@ socket.on('message', function (message) {
 	else if (type == 'candidate') {
 		app._addIceCandidate(message);
 	}
+});
+
+socket.on('join', function (room) {
+	app.call();
+});
+
+socket.on('created', function (room) {
+	app.room = room;
 });
 
 window.app = app;
