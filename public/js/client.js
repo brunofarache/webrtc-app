@@ -30,38 +30,30 @@ if (!window.RTCIceCandidate) {
 }
 
 var app = {
-	peer: new RTCPeerConnection({
-		"iceServers": [{"url": "stun:stun.l.google.com:19302"}]
-	}),
+	peers: {},
 	room: null,
+	stream: null,
 
 	start: function() {
 		var instance = this,
-			peer = instance.peer,
-			video1 = document.getElementById('video1');
+			video = document.getElementById('local-video');
 
 		navigator.getUserMedia(
 			{
-				audio: true,
-				video: true
+				'audio': true,
+				'video': true
 			},
 			function (stream) {
-				instance._attachStream(video1, stream);
-				video1.muted = true;
+				instance._attachStream(video, stream);
+				video.muted = true;
+				instance.stream = stream;
 
-				instance._createPeerConnection(stream);
+				socket.emit('join', location.hash);
 			},
 			function () {
 				console.log('cannot access camera');
 			}
 		);
-	},
-
-	call: function() {
-		var instance = this,
-			peer = instance.peer;
-
-		peer.createOffer(instance._setLocalDescription.bind(instance));
 	},
 
 	_attachStream: function(video, stream) {
@@ -71,14 +63,14 @@ var app = {
 
 	_addIceCandidate: function(message) {
 		var instance = this,
-			peer = instance.peer;
+			peer = instance.peers[message.from];
 
-		peer.addIceCandidate(new RTCIceCandidate(message));
+		peer.addIceCandidate(new RTCIceCandidate(message.payload));
 	},
 
 	_answer: function(message) {
 		var instance = this,
-			peer = instance.peer;
+			peer = instance._createPeerConnection(message.from);
 
 		instance._setRemoteDescription(message);
 
@@ -89,42 +81,55 @@ var app = {
 			}
 		};
 
-		peer.createAnswer(instance._setLocalDescription.bind(instance), null, constraints);
+		peer.createAnswer(instance._setLocalDescription.bind(instance, peer), null, constraints);
 	},
 
-	_createPeerConnection: function(stream) {
+	_offer: function(id) {
 		var instance = this,
-			peer = instance.peer;
+			peer = instance._createPeerConnection(id);
 
-		peer.onicecandidate = instance._onIceCandidate.bind(instance);
-		peer.onaddstream = instance._onAddStream.bind(instance);
+		peer.createOffer(instance._setLocalDescription.bind(instance, peer));
+	},
+
+	_createPeerConnection: function(id) {
+		var instance = this,
+			peer = new RTCPeerConnection({
+				"iceServers": [{"url": "stun:stun.l.google.com:19302"}]
+			}),
+			peers = instance.peers,
+			stream = instance.stream;
+
+		peer.onicecandidate = instance._onIceCandidate.bind(instance, id);
+		peer.onaddstream = instance._onAddStream.bind(instance, id);
 		peer.addStream(stream);
 
-		socket.emit('join', location.hash);
+		peer.id = id;
+		peers[id] = peer;
+
+		return peer;
 	},
 
-	_setLocalDescription: function(description) {
-		var instance = this,
-			peer = instance.peer;
+	_setLocalDescription: function(peer, description) {
+		var instance = this;
 
 		peer.setLocalDescription(description);
 
 		socket.emit('relay', {
 			'room': instance.room,
+			'to': peer.id,
 			'payload': description
 		});
 	},
 
 	_setRemoteDescription: function(message) {
 		var instance = this,
-			peer = instance.peer;
+			peer = instance.peers[message.from];
 
-		peer.setRemoteDescription(new RTCSessionDescription(message));
+		peer.setRemoteDescription(new RTCSessionDescription(message.payload));
 	},
 
-	_onIceCandidate: function(event) {
-		var instance = this,
-			peer = instance.peer;
+	_onIceCandidate: function(id, event) {
+		var instance = this;
 
 		if (event.candidate) {
 			var payload = {
@@ -135,23 +140,27 @@ var app = {
 
 			socket.emit('relay', {
 				'room': instance.room,
+				'to': id,
 				'payload': payload
 			});
 		}	
 	},
 
-	_onAddStream: function(event) {
+	_onAddStream: function(id, event) {
 		var instance = this,
-			video2 = document.getElementById('video2');
+			video = document.createElement('video');
 
-		instance._attachStream(video2, event.stream);
+		video.id = id;
+		document.body.appendChild(video);
+
+		instance._attachStream(video, event.stream);
 	}
 };
 
 var socket = io.connect();
 
 socket.on('relay', function (message) {
-	var type = message.type;
+	var type = message.payload.type;
 
 	if (type === 'offer') {
 		app._answer(message);
@@ -164,8 +173,8 @@ socket.on('relay', function (message) {
 	}
 });
 
-socket.on('join', function (room) {
-	app.call();
+socket.on('join', function (id) {
+	app._offer(id);
 });
 
 socket.on('created', function (room) {

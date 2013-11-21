@@ -13,7 +13,9 @@ function handler(request, response) {
 
 io.sockets.on('connection', function (socket) {
 	socket.on('relay', function (message) {
-		socket.broadcast.to(message.room).emit('relay', message.payload)
+		message.from = socket.id;
+
+		io.sockets.socket(message.to).emit('relay', message);
 	});
 
 	socket.on('join', function (room) {
@@ -25,11 +27,11 @@ io.sockets.on('connection', function (socket) {
 
 		var peers = io.sockets.clients(room).length;
 
-		if (peers == 1) {
-			io.sockets.in(room).emit('join', room);
-		}
-		else if (peers == 0) {
+		if (peers == 0) {
 			socket.emit('created', room);
+		}
+		else {
+			io.sockets.in(room).emit('join', socket.id);
 		}
 
 		socket.join(room);
