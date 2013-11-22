@@ -36,4 +36,10 @@ io.sockets.on('connection', function (socket) {
 
 		socket.join(room);
 	});
+
+	socket.on('leave', function (room) {
+		io.sockets.in(room).emit('leave', socket.id);
+
+		socket.leave(room);
+	});
 });

@@ -154,6 +154,18 @@ var app = {
 		document.body.appendChild(video);
 
 		instance._attachStream(video, event.stream);
+	},
+
+	_onLeave: function(id) {
+		var instance = this,
+			video = document.getElementById(id),
+			peers = instance.peers,
+			peer = peers[id];
+
+		peer.close();
+		delete peers[id];
+
+		video.parentNode.removeChild(video);
 	}
 };
 
@@ -173,13 +185,21 @@ socket.on('relay', function (message) {
 	}
 });
 
+socket.on('created', function (room) {
+	app.room = room;
+});
+
 socket.on('join', function (id) {
 	app._offer(id);
 });
 
-socket.on('created', function (room) {
-	app.room = room;
+socket.on('leave', function (id) {
+	app._onLeave(id);
 });
+
+window.onbeforeunload = function(event) {
+	socket.emit('leave', app.room);
+};
 
 window.app = app;
 
