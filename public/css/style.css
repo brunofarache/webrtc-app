@@ -2,7 +2,7 @@ body {
 	background-color: #272822;
 }
 
-#callerVideo {
-	height: 240px;
-	width: 320px;
+#local-video {
+	-webkit-transform: scaleX(-1);
+	transform: scaleX(-1);
 }
