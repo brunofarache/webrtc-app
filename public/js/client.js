@@ -36,7 +36,9 @@ var app = {
 
 	start: function() {
 		var instance = this,
-			video = document.getElementById('local-video');
+			video = document.getElementById('local');
+
+		instance._setMain(video);
 
 		navigator.getUserMedia(
 			{
@@ -121,6 +123,20 @@ var app = {
 		});
 	},
 
+	_setMain: function(video) {
+		var instance = this,
+			previous = document.querySelector('video.main'),
+			thumbnails = document.querySelectorAll('video.thumbnail').length;
+
+		video.className = 'main';
+		video.height = window.innerHeight;
+
+		if (previous) {
+			previous.style.top = (thumbnails * 200) + 'px';
+			previous.className = 'thumbnail';
+		}
+	},
+
 	_setRemoteDescription: function(message) {
 		var instance = this,
 			peer = instance.peers[message.from];
@@ -152,6 +168,7 @@ var app = {
 
 		video.id = id;
 		document.body.appendChild(video);
+		instance._setMain(video);
 
 		instance._attachStream(video, event.stream);
 	},

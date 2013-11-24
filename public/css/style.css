@@ -1,8 +1,14 @@
 body {
 	background-color: #272822;
+	margin: 0;
 }
 
-#local-video {
-	-webkit-transform: scaleX(-1);
+#local {
 	transform: scaleX(-1);
+	-webkit-transform: scaleX(-1);
+}
+
+video.thumbnail {
+	height: 200px;
+	position: absolute;
 }
