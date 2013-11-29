@@ -1,6 +1,7 @@
 body {
 	background-color: #272822;
 	margin: 0;
+	overflow: hidden;
 }
 
 #local {
@@ -9,6 +10,6 @@ body {
 }
 
 video.thumbnail {
-	height: 200px;
 	position: absolute;
+	width: 200px;
 }

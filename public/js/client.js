@@ -30,6 +30,7 @@ if (!window.RTCIceCandidate) {
 }
 
 var app = {
+	channels: {},
 	peers: {},
 	room: null,
 	stream: null,
@@ -95,11 +96,20 @@ var app = {
 
 	_createPeerConnection: function(id) {
 		var instance = this,
-			peer = new RTCPeerConnection({
-				"iceServers": [{"url": "stun:stun.l.google.com:19302"}]
-			}),
+			servers = {
+				'iceServers': [
+					{'url': 'stun:stun.l.google.com:19302'}
+				]
+			},
+			options = {
+				'optional': [
+					{'RtpDataChannels': true}
+				]
+			},
+			peer = new RTCPeerConnection(servers, options),
 			peers = instance.peers,
-			stream = instance.stream;
+			stream = instance.stream,
+			channels = instance.channels;
 
 		peer.onicecandidate = instance._onIceCandidate.bind(instance, id);
 		peer.onaddstream = instance._onAddStream.bind(instance, id);
@@ -107,6 +117,9 @@ var app = {
 
 		peer.id = id;
 		peers[id] = peer;
+
+		channels[id] = peer.createDataChannel('chat', {'reliable': false});
+		channels[id].onmessage = instance._onDataChannelMessage.bind(instance);
 
 		return peer;
 	},
@@ -129,10 +142,10 @@ var app = {
 			thumbnails = document.querySelectorAll('video.thumbnail').length;
 
 		video.className = 'main';
-		video.height = window.innerHeight;
+		video.width = window.innerWidth;
 
 		if (previous) {
-			previous.style.top = (thumbnails * 200) + 'px';
+			previous.style.top = (thumbnails * 150) + 'px';
 			previous.className = 'thumbnail';
 		}
 	},
@@ -171,6 +184,10 @@ var app = {
 		instance._setMain(video);
 
 		instance._attachStream(video, event.stream);
+	},
+
+	_onDataChannelMessage: function(event) {
+		console.log('_onDataChannelMessage', event);
 	},
 
 	_onLeave: function(id) {
@@ -220,4 +237,4 @@ window.onbeforeunload = function(event) {
 
 window.app = app;
 
-}(window));
+})(window);
