@@ -29,6 +29,19 @@ if (!window.RTCIceCandidate) {
 	window.RTCIceCandidate = window.mozRTCIceCandidate;
 }
 
+function getURLParams() {
+	var params = {},
+		query = window.location.search.substring(1).split('&');
+
+	query.forEach(function(pair) {
+		var keyValue = pair.split('=');
+
+		params[keyValue[0]] = keyValue[1];
+	});
+
+	return params;
+}
+
 var app = {
 	channels: {},
 	peers: {},
@@ -37,26 +50,43 @@ var app = {
 
 	start: function() {
 		var instance = this,
-			video = document.getElementById('local');
+			video = document.getElementById('local'),
+			params = getURLParams(),
+			constraints;
 
 		instance._setMain(video);
 
-		navigator.getUserMedia(
-			{
+		if (params.media == 'screen') {
+			constraints = {
+				'video': {
+					mandatory: {
+				        chromeMediaSource: 'screen',
+						maxWidth: 1280,
+						maxHeight: 720
+					}
+				}
+			};
+		}
+		else {
+			constraints = {
 				'audio': true,
 				'video': true
-			},
-			function (stream) {
-				instance._attachStream(video, stream);
-				video.muted = true;
-				instance.stream = stream;
-
-				socket.emit('join', location.hash);
-			},
-			function () {
-				console.log('cannot access camera');
 			}
-		);
+		}
+
+		var success = function(stream) {
+			instance._attachStream(video, stream);
+			video.muted = true;
+			instance.stream = stream;
+
+			socket.emit('join', location.hash);
+		};
+
+		var error = function () {
+			console.log('cannot access camera');
+		};
+
+		navigator.getUserMedia(constraints, success, error);
 	},
 
 	_attachStream: function(video, stream) {
