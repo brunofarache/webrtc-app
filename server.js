@@ -1,4 +1,9 @@
-var app = require('http').createServer(handler),
+var fs = require('fs'), 
+	options = {
+		key: fs.readFileSync('key.pem'),
+		cert: fs.readFileSync('certificate.pem')
+	},
+	app = require('https').createServer(options, handler),
 	io = require('socket.io').listen(app, { log: false }),
 	static = require('node-static'),
 	server = new static.Server('./public');
