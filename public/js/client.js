@@ -77,24 +77,24 @@
 			});
 
 			socket.on('join', function(id) {
-				webrtc._offer(id);
+				webrtc.onJoin(id);
 			});
 
 			socket.on('leave', function(id) {
-				webrtc._onLeave(id);
+				webrtc.onLeave(id);
 			});
 
 			socket.on('relay', function(message) {
 				var type = message.payload.type;
 
 				if (type === 'offer') {
-					webrtc._answer(message);
+					webrtc.onOffer(message);
 				}
 				else if (type === 'answer') {
-					webrtc._setRemoteDescription(message);
+					webrtc.onAnswer(message);
 				}
 				else if (type === 'candidate') {
-					webrtc._addIceCandidate(message);
+					webrtc.onCandidate(message);
 				}
 			});
 
@@ -134,14 +134,39 @@
 			);
 		},
 
-		_addIceCandidate: function(message) {
+		onAnswer: function(message) {
+			var instance = this;
+
+			instance._setRemoteDescription(message);
+		},
+
+		onCandidate: function(message) {
 			var instance = this,
 				peer = instance.peers[message.from];
 
 			peer.addIceCandidate(new RTCIceCandidate(message.payload));
 		},
 
-		_answer: function(message) {
+		onJoin: function(id) {
+			var instance = this,
+				peer = instance._createPeerConnection(id);
+
+			peer.createOffer(instance._setLocalDescription.bind(instance, peer));
+		},
+
+		onLeave: function(id) {
+			var instance = this,
+				video = document.getElementById(id),
+				peers = instance.peers,
+				peer = peers[id];
+
+			peer.close();
+			delete peers[id];
+
+			video.parentNode.removeChild(video);
+		},
+
+		onOffer: function(message) {
 			var instance = this,
 				peer = instance._createPeerConnection(message.from);
 
@@ -195,13 +220,6 @@
 			return peer;
 		},
 
-		_offer: function(id) {
-			var instance = this,
-				peer = instance._createPeerConnection(id);
-
-			peer.createOffer(instance._setLocalDescription.bind(instance, peer));
-		},
-
 		_onAddStream: function(id, event) {
 			var instance = this,
 				video = document.createElement('video');
@@ -230,18 +248,6 @@
 
 				server.message(id, payload);
 			}
-		},
-
-		_onLeave: function(id) {
-			var instance = this,
-				video = document.getElementById(id),
-				peers = instance.peers,
-				peer = peers[id];
-
-			peer.close();
-			delete peers[id];
-
-			video.parentNode.removeChild(video);
 		},
 
 		_setLocalDescription: function(peer, description) {
