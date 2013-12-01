@@ -61,7 +61,7 @@
 			var instance = this,
 				socket = instance.socket;
 
-			socket.emit('relay', {
+			socket.emit('message', {
 				'room': instance.room,
 				'to': to,
 				'payload': message
@@ -84,7 +84,7 @@
 				webrtc.onLeave(id);
 			});
 
-			socket.on('relay', function(message) {
+			socket.on('message', function(message) {
 				var type = message.payload.type;
 
 				if (type === 'offer') {

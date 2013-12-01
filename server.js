@@ -16,12 +16,6 @@ function handler(request, response) {
 }
 
 io.sockets.on('connection', function(socket) {
-	socket.on('relay', function(message) {
-		message.from = socket.id;
-
-		io.sockets.socket(message.to).emit('relay', message);
-	});
-
 	socket.on('join', function(room) {
 		if (room === '') {
 			room = 'default';
@@ -45,5 +39,11 @@ io.sockets.on('connection', function(socket) {
 		io.sockets.in(room).emit('leave', socket.id);
 
 		socket.leave(room);
+	});
+
+	socket.on('message', function(message) {
+		message.from = socket.id;
+
+		io.sockets.socket(message.to).emit('message', message);
 	});
 });
