@@ -30,14 +30,89 @@
 		window.RTCIceCandidate = window.mozRTCIceCandidate;
 	}
 
+	var Server = function() {
+		var instance = this,
+			socket = io.connect();
+
+		instance.socket = socket;
+
+		instance._setup();
+	};
+
+	Server.prototype = {
+		room: null,
+		socket: null,
+
+		join: function() {
+			var instance = this,
+				socket = instance.socket;
+
+			socket.emit('join', location.hash);
+		},
+
+		leave: function() {
+			var instance = this,
+				socket = instance.socket;
+
+			socket.emit('leave', instance.room);
+		},
+
+		message: function(to, message) {
+			var instance = this,
+				socket = instance.socket;
+
+			socket.emit('relay', {
+				'room': instance.room,
+				'to': to,
+				'payload': message
+			});
+		},
+
+		_setup: function() {
+			var instance = this,
+				socket = instance.socket;
+
+			socket.on('created', function(room) {
+				instance.room = room;
+			});
+
+			socket.on('join', function(id) {
+				webrtc._offer(id);
+			});
+
+			socket.on('leave', function(id) {
+				webrtc._onLeave(id);
+			});
+
+			socket.on('relay', function(message) {
+				var type = message.payload.type;
+
+				if (type === 'offer') {
+					webrtc._answer(message);
+				}
+				else if (type === 'answer') {
+					webrtc._setRemoteDescription(message);
+				}
+				else if (type === 'candidate') {
+					webrtc._addIceCandidate(message);
+				}
+			});
+
+			window.onbeforeunload = function(event) {
+				instance.leave();
+			};
+		}
+	};
+
 	var webrtc = {
 		channels: {},
 		peers: {},
-		room: null,
+		server: new Server(),
 		stream: null,
 
 		join: function() {
 			var instance = this,
+				server = instance.server,
 				video = document.getElementById('local');
 
 			instance._setMain(video);
@@ -51,7 +126,7 @@
 					video.muted = true;
 					instance.stream = stream;
 
-					socket.emit('join', location.hash);
+					server.join();
 				},
 				function() {
 					console.log('cannot access camera');
@@ -114,6 +189,7 @@
 			channels[id] = peer.createDataChannel('chat', {
 				'reliable': false
 			});
+
 			channels[id].onmessage = instance._onDataChannelMessage.bind(instance);
 
 			return peer;
@@ -142,7 +218,8 @@
 		},
 
 		_onIceCandidate: function(id, event) {
-			var instance = this;
+			var instance = this,
+				server = instance.server;
 
 			if (event.candidate) {
 				var payload = {
@@ -151,11 +228,7 @@
 					candidate: event.candidate.candidate
 				};
 
-				socket.emit('relay', {
-					'room': instance.room,
-					'to': id,
-					'payload': payload
-				});
+				server.message(id, payload);
 			}
 		},
 
@@ -172,15 +245,12 @@
 		},
 
 		_setLocalDescription: function(peer, description) {
-			var instance = this;
+			var instance = this,
+				server = instance.server;
 
 			peer.setLocalDescription(description);
 
-			socket.emit('relay', {
-				'room': instance.room,
-				'to': peer.id,
-				'payload': description
-			});
+			server.message(peer.id, description);
 		},
 
 		_setMain: function(video) {
@@ -203,38 +273,6 @@
 
 			peer.setRemoteDescription(new RTCSessionDescription(message.payload));
 		}
-	};
-
-	var socket = io.connect();
-
-	socket.on('relay', function(message) {
-		var type = message.payload.type;
-
-		if (type === 'offer') {
-			webrtc._answer(message);
-		}
-		else if (type === 'answer') {
-			webrtc._setRemoteDescription(message);
-		}
-		else if (type === 'candidate') {
-			webrtc._addIceCandidate(message);
-		}
-	});
-
-	socket.on('created', function(room) {
-		webrtc.room = room;
-	});
-
-	socket.on('join', function(id) {
-		webrtc._offer(id);
-	});
-
-	socket.on('leave', function(id) {
-		webrtc._onLeave(id);
-	});
-
-	window.onbeforeunload = function(event) {
-		socket.emit('leave', webrtc.room);
 	};
 
 	window.webrtc = webrtc;
