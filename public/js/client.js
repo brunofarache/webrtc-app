@@ -30,13 +30,13 @@
 		window.RTCIceCandidate = window.mozRTCIceCandidate;
 	}
 
-	var app = {
+	var webrtc = {
 		channels: {},
 		peers: {},
 		room: null,
 		stream: null,
 
-		start: function() {
+		join: function() {
 			var instance = this,
 				video = document.getElementById('local');
 
@@ -57,11 +57,6 @@
 					console.log('cannot access camera');
 				}
 			);
-		},
-
-		_attachStream: function(video, stream) {
-			video.autoplay = true;
-			video.src = window.URL.createObjectURL(stream);
 		},
 
 		_addIceCandidate: function(message) {
@@ -87,11 +82,9 @@
 			peer.createAnswer(instance._setLocalDescription.bind(instance, peer), null, constraints);
 		},
 
-		_offer: function(id) {
-			var instance = this,
-				peer = instance._createPeerConnection(id);
-
-			peer.createOffer(instance._setLocalDescription.bind(instance, peer));
+		_attachStream: function(video, stream) {
+			video.autoplay = true;
+			video.src = window.URL.createObjectURL(stream);
 		},
 
 		_createPeerConnection: function(id) {
@@ -126,6 +119,58 @@
 			return peer;
 		},
 
+		_offer: function(id) {
+			var instance = this,
+				peer = instance._createPeerConnection(id);
+
+			peer.createOffer(instance._setLocalDescription.bind(instance, peer));
+		},
+
+		_onAddStream: function(id, event) {
+			var instance = this,
+				video = document.createElement('video');
+
+			video.id = id;
+			document.body.appendChild(video);
+			instance._setMain(video);
+
+			instance._attachStream(video, event.stream);
+		},
+
+		_onDataChannelMessage: function(event) {
+			console.log('_onDataChannelMessage', event);
+		},
+
+		_onIceCandidate: function(id, event) {
+			var instance = this;
+
+			if (event.candidate) {
+				var payload = {
+					type: 'candidate',
+					sdpMLineIndex: event.candidate.sdpMLineIndex,
+					candidate: event.candidate.candidate
+				};
+
+				socket.emit('relay', {
+					'room': instance.room,
+					'to': id,
+					'payload': payload
+				});
+			}
+		},
+
+		_onLeave: function(id) {
+			var instance = this,
+				video = document.getElementById(id),
+				peers = instance.peers,
+				peer = peers[id];
+
+			peer.close();
+			delete peers[id];
+
+			video.parentNode.removeChild(video);
+		},
+
 		_setLocalDescription: function(peer, description) {
 			var instance = this;
 
@@ -157,51 +202,6 @@
 				peer = instance.peers[message.from];
 
 			peer.setRemoteDescription(new RTCSessionDescription(message.payload));
-		},
-
-		_onIceCandidate: function(id, event) {
-			var instance = this;
-
-			if (event.candidate) {
-				var payload = {
-					type: 'candidate',
-					sdpMLineIndex: event.candidate.sdpMLineIndex,
-					candidate: event.candidate.candidate
-				};
-
-				socket.emit('relay', {
-					'room': instance.room,
-					'to': id,
-					'payload': payload
-				});
-			}
-		},
-
-		_onAddStream: function(id, event) {
-			var instance = this,
-				video = document.createElement('video');
-
-			video.id = id;
-			document.body.appendChild(video);
-			instance._setMain(video);
-
-			instance._attachStream(video, event.stream);
-		},
-
-		_onDataChannelMessage: function(event) {
-			console.log('_onDataChannelMessage', event);
-		},
-
-		_onLeave: function(id) {
-			var instance = this,
-				video = document.getElementById(id),
-				peers = instance.peers,
-				peer = peers[id];
-
-			peer.close();
-			delete peers[id];
-
-			video.parentNode.removeChild(video);
 		}
 	};
 
@@ -211,32 +211,34 @@
 		var type = message.payload.type;
 
 		if (type === 'offer') {
-			app._answer(message);
+			webrtc._answer(message);
 		}
 		else if (type === 'answer') {
-			app._setRemoteDescription(message);
+			webrtc._setRemoteDescription(message);
 		}
 		else if (type === 'candidate') {
-			app._addIceCandidate(message);
+			webrtc._addIceCandidate(message);
 		}
 	});
 
 	socket.on('created', function(room) {
-		app.room = room;
+		webrtc.room = room;
 	});
 
 	socket.on('join', function(id) {
-		app._offer(id);
+		webrtc._offer(id);
 	});
 
 	socket.on('leave', function(id) {
-		app._onLeave(id);
+		webrtc._onLeave(id);
 	});
 
 	window.onbeforeunload = function(event) {
-		socket.emit('leave', app.room);
+		socket.emit('leave', webrtc.room);
 	};
 
-	window.app = app;
+	window.webrtc = webrtc;
+
+	webrtc.join();
 
 })(window);
