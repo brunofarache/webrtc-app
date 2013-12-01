@@ -104,27 +104,71 @@
 		}
 	};
 
+	var videos = {
+		localStream: null,
+
+		add: function(id, event) {
+			var instance = this,
+				video = document.createElement('video');
+
+			video.id = id;
+			document.body.appendChild(video);
+			instance._fullscreen(video);
+
+			instance._attachStream(video, event.stream);
+		},
+
+		setLocalStream: function(stream) {
+			var instance = this,
+				video = document.getElementById('local');
+
+			instance._fullscreen(video);
+
+			instance._attachStream(video, stream);
+			video.muted = true;
+			instance.localStream = stream;
+		},
+
+		remove: function(id) {
+			var video = document.getElementById(id);
+
+			video.parentNode.removeChild(video);
+		},
+
+		_attachStream: function(video, stream) {
+			video.autoplay = true;
+			video.src = window.URL.createObjectURL(stream);
+		},
+
+		_fullscreen: function(video) {
+			var previous = document.querySelector('video.fullscreen'),
+				thumbnails = document.querySelectorAll('video.thumbnail').length;
+
+			video.className = 'fullscreen';
+			video.width = window.innerWidth;
+
+			if (previous) {
+				previous.style.top = (thumbnails * 150) + 'px';
+				previous.className = 'thumbnail';
+			}
+		}
+	};
+
 	var webrtc = {
 		channels: {},
 		peers: {},
 		server: new Server(),
-		stream: null,
 
 		join: function() {
 			var instance = this,
-				server = instance.server,
-				video = document.getElementById('local');
-
-			instance._setMain(video);
+				server = instance.server;
 
 			navigator.getUserMedia({
 					'audio': true,
 					'video': true
 				},
 				function(stream) {
-					instance._attachStream(video, stream);
-					video.muted = true;
-					instance.stream = stream;
+					videos.setLocalStream(stream);
 
 					server.join();
 				},
@@ -156,14 +200,12 @@
 
 		onLeave: function(id) {
 			var instance = this,
-				video = document.getElementById(id),
 				peers = instance.peers,
 				peer = peers[id];
 
 			peer.close();
 			delete peers[id];
-
-			video.parentNode.removeChild(video);
+			videos.remove(id);
 		},
 
 		onOffer: function(message) {
@@ -182,11 +224,6 @@
 			peer.createAnswer(instance._setLocalDescription.bind(instance, peer), null, constraints);
 		},
 
-		_attachStream: function(video, stream) {
-			video.autoplay = true;
-			video.src = window.URL.createObjectURL(stream);
-		},
-
 		_createPeerConnection: function(id) {
 			var instance = this,
 				servers = {
@@ -201,12 +238,12 @@
 				},
 				peer = new RTCPeerConnection(servers, options),
 				peers = instance.peers,
-				stream = instance.stream,
+				localStream = videos.localStream,
 				channels = instance.channels;
 
 			peer.onicecandidate = instance._onIceCandidate.bind(instance, id);
-			peer.onaddstream = instance._onAddStream.bind(instance, id);
-			peer.addStream(stream);
+			peer.onaddstream = videos.add.bind(videos, id);
+			peer.addStream(localStream);
 
 			peer.id = id;
 			peers[id] = peer;
@@ -218,17 +255,6 @@
 			channels[id].onmessage = instance._onDataChannelMessage.bind(instance);
 
 			return peer;
-		},
-
-		_onAddStream: function(id, event) {
-			var instance = this,
-				video = document.createElement('video');
-
-			video.id = id;
-			document.body.appendChild(video);
-			instance._setMain(video);
-
-			instance._attachStream(video, event.stream);
 		},
 
 		_onDataChannelMessage: function(event) {
@@ -257,20 +283,6 @@
 			peer.setLocalDescription(description);
 
 			server.message(peer.id, description);
-		},
-
-		_setMain: function(video) {
-			var instance = this,
-				previous = document.querySelector('video.main'),
-				thumbnails = document.querySelectorAll('video.thumbnail').length;
-
-			video.className = 'main';
-			video.width = window.innerWidth;
-
-			if (previous) {
-				previous.style.top = (thumbnails * 150) + 'px';
-				previous.className = 'thumbnail';
-			}
 		},
 
 		_setRemoteDescription: function(message) {
