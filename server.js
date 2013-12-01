@@ -1,9 +1,11 @@
+'use strict';
+
 var app = require('http').createServer(handler),
 	io = require('socket.io').listen(app, {
 		log: false
 	}),
-	static = require('node-static'),
-	server = new static.Server('./public');
+	nodeStatic = require('node-static'),
+	server = new nodeStatic.Server('./public');
 
 app.listen(80);
 
@@ -29,7 +31,7 @@ io.sockets.on('connection', function(socket) {
 
 		var peers = io.sockets.clients(room).length;
 
-		if (peers == 0) {
+		if (peers === 0) {
 			socket.emit('created', room);
 		}
 		else {

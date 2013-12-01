@@ -1,4 +1,5 @@
 (function(window) {
+	'use strict';
 
 	var document = window.document,
 		navigator = window.navigator;
@@ -215,7 +216,7 @@
 		else if (type === 'answer') {
 			app._setRemoteDescription(message);
 		}
-		else if (type == 'candidate') {
+		else if (type === 'candidate') {
 			app._addIceCandidate(message);
 		}
 	});
