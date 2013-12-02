@@ -7,6 +7,7 @@
 	},
 	"dependencies": {
 		"socket.io": "*",
+		"nconf": "0.6.9",
 		"node-static": "0.7.2"
 	},
 	"engines": {

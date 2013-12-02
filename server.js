@@ -1,9 +1,31 @@
 'use strict';
 
-var app = require('http').createServer(handler),
-	io = require('socket.io').listen(app, {
-		log: false
-	}),
+var nconf = require('nconf'),
+	fs = require('fs');
+
+nconf.argv({
+	"protocol": {
+		alias: "p",
+		"default": "http"
+	}
+});
+
+var protocol = nconf.get('protocol'),
+	app;
+
+if (protocol === 'https') {
+	var options = {
+		key: fs.readFileSync('key.pem'),
+		cert: fs.readFileSync('certificate.pem')
+	};
+
+	app = require(protocol).createServer(options, handler);
+}
+else {
+	app = require(protocol).createServer(handler);
+}
+
+var	io = require('socket.io').listen(app, { log: false }),
 	nodeStatic = require('node-static'),
 	server = new nodeStatic.Server('./public');
 
