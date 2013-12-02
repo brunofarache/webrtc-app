@@ -4,12 +4,24 @@ body {
 	overflow: hidden;
 }
 
+@-webkit-keyframes blur-anim {
+	from {
+		-webkit-filter: blur(40px);
+	}
+	to {
+		-webkit-filter: blur(0);
+	}
+}
+
 #local {
-	transform: scaleX(-1);
 	-webkit-transform: scaleX(-1);
 }
 
-video.thumbnail {
+.blur {
+	-webkit-animation: blur-anim 1.5s linear;
+}
+
+.thumbnail {
 	position: absolute;
 	width: 200px;
 }

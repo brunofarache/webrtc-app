@@ -125,6 +125,7 @@
 			instance._fullscreen(video);
 
 			instance._attachStream(video, stream);
+			video.className = video.className + ' blur';
 			video.muted = true;
 			instance.localStream = stream;
 		},
