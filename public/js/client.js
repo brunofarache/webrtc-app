@@ -118,14 +118,17 @@
 			instance._attachStream(video, event.stream);
 		},
 
-		setLocalStream: function(stream) {
+		setLocalStream: function(stream, media) {
 			var instance = this,
 				video = document.getElementById('local');
 
 			instance._fullscreen(video);
 
+			if (media !== 'screen') {
+				video.className = video.className + ' flipped blur';
+			}
+
 			instance._attachStream(video, stream);
-			video.className = video.className + ' blur';
 			video.muted = true;
 			instance.localStream = stream;
 		},
@@ -162,21 +165,39 @@
 
 		join: function() {
 			var instance = this,
-				server = instance.server;
+				server = instance.server,
+				params = instance._getParams(),
+				constraints, blur;
 
-			navigator.getUserMedia({
+			if (params.media == 'screen') {
+				constraints = {
+					'video': {
+						mandatory: {
+							chromeMediaSource: 'screen',
+							maxWidth: screen.width,
+							maxHeight: screen.height
+						}
+					}
+				};
+			}
+			else {
+				constraints = {
 					'audio': true,
 					'video': true
-				},
-				function(stream) {
-					videos.setLocalStream(stream);
-
-					server.join();
-				},
-				function() {
-					console.log('cannot access camera');
 				}
-			);
+			}
+
+			var success = function(stream) {
+				videos.setLocalStream(stream, params.media);
+
+				server.join();
+			};
+
+			var error = function() {
+				console.log('cannot access camera');
+			};
+
+			navigator.getUserMedia(constraints, success, error);
 		},
 
 		onAnswer: function(message) {
@@ -256,6 +277,19 @@
 			channels[id].onmessage = instance._onDataChannelMessage.bind(instance);
 
 			return peer;
+		},
+
+		_getParams: function() {
+			var params = {},
+				query = window.location.search.substring(1).split('&');
+
+			query.forEach(function(pair) {
+				var keyValue = pair.split('=');
+
+				params[keyValue[0]] = keyValue[1];
+			});
+
+			return params;
 		},
 
 		_onDataChannelMessage: function(event) {

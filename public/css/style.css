@@ -13,12 +13,12 @@ body {
 	}
 }
 
-#local {
-	-webkit-transform: scaleX(-1);
-}
-
 .blur {
 	-webkit-animation: blur-anim 1.5s linear;
+}
+
+.flipped {
+	-webkit-transform: scaleX(-1);
 }
 
 .thumbnail {
